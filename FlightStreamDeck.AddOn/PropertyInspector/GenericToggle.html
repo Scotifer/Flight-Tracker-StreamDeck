@@ -67,7 +67,42 @@
             };
         }
 
+        async function readFile(key, file) {
+            var rawFile = new XMLHttpRequest();
+            rawFile.responseType = 'arraybuffer';
+            rawFile.open("GET", file, true);
+            rawFile.onreadystatechange = function () {
+                if (rawFile.readyState === 4) {
+                    if (rawFile.status === 200 || rawFile.status == 0) {
+                        // Create a binary string from the returned data, then encode it as a data URL.
+                        var uInt8Array = new Uint8Array(this.response);
+                        var i = uInt8Array.length;
+                        var binaryString = new Array(i);
+                        while (i--) {
+                            binaryString[i] = String.fromCharCode(uInt8Array[i]);
+                        }
+                        var data = binaryString.join('');
+
+                        var base64 = window.btoa(data);
+                        settings[key + '_base64'] = base64;
+                        //settings[key + '_base64'] = rawFile.response;
+
+                        sendValueToPlugin(settings);
+                        setSettings(settings);
+                    }
+                }
+            }
+            rawFile.send(null);
+        }
+
         function handleItemChanged(control, value) {
+            if (value.key === 'ImageOn') {
+                if (value.value) {
+                    readFile(value.key, value.value);
+                } else {
+                    settings[value.key + "_base64"] = null;
+                }
+            }
             settings[value.key] = value.value;
 
             sendValueToPlugin(settings);

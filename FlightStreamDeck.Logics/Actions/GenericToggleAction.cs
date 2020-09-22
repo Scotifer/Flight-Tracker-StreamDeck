@@ -4,6 +4,7 @@ using Newtonsoft.Json.Linq;
 using SharpDeck;
 using SharpDeck.Events.Received;
 using SharpDeck.Manifest;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -18,6 +19,7 @@ namespace FlightStreamDeck.Logics.Actions
         public string FeedbackValue { get; set; }
         public string DisplayValue { get; set; }
         public string ImageOn { get; set; }
+        public string ImageOn_base64 { get; set; }
         public string ImageOff { get; set; }
     }
 
@@ -116,6 +118,11 @@ namespace FlightStreamDeck.Logics.Actions
             return Task.CompletedTask;
         }
 
+        protected override Task OnDidReceiveSettings(ActionEventArgs<ActionPayload> args, GenericToggleSettings settings)
+        {
+            return base.OnDidReceiveSettings(args, settings);
+        }
+
         protected override async Task OnSendToPlugin(ActionEventArgs<JObject> args)
         {
             InitializeSettings(args.Payload.ToObject<GenericToggleSettings>());
@@ -146,7 +153,16 @@ namespace FlightStreamDeck.Logics.Actions
         {
             if (settings != null)
             {
-                await SetImageAsync(imageLogic.GetImage(settings.Header, currentStatus, currentValue, settings.ImageOn, settings.ImageOff));
+                if (settings.ImageOn_base64 != null)
+                {
+                    var s = settings.ImageOn_base64;
+                    s = s.Replace('-', '+').Replace('_', '/').PadRight(4 * ((s.Length + 3) / 4), '=');
+                    await SetImageAsync(imageLogic.GetImage(settings.Header, currentStatus, currentValue, Convert.FromBase64String(s), settings.ImageOff));
+                }
+                else
+                {
+                    await SetImageAsync(imageLogic.GetImage(settings.Header, currentStatus, currentValue, settings.ImageOn, settings.ImageOff));
+                }
             }
         }
     }

@@ -12,6 +12,7 @@ namespace FlightStreamDeck.Logics
 {
     public interface IImageLogic
     {
+        string GetImage(string text, bool active, string value = null, byte[] customActiveBackground = null, string customBackground = null);
         string GetImage(string text, bool active, string value = null, string customActiveBackground = null, string customBackground = null);
         string GetNumberImage(int number);
         string GetNavComImage(string type, bool dependant, string value1 = null, string value2 = null, bool showMainOnly = false);
@@ -29,6 +30,53 @@ namespace FlightStreamDeck.Logics
 
         private const int WIDTH = 72;
         private const int HALF_WIDTH = 36;
+
+        /// <returns>Base64 image data</returns>
+        public string GetImage(string text, bool active, string value = null, byte[] customActiveBackground = null, string customBackground = null)
+        {
+            var font = SystemFonts.CreateFont("Arial", 17, FontStyle.Regular);
+            var valueFont = SystemFonts.CreateFont("Arial", 15, FontStyle.Regular);
+            bool hasValue = value != null && value.Length > 0;
+
+            // Note: logic to choose with image to show
+            // 1. If user did not select custom images, the active image (with light) is used 
+            //    only when Feedback value is true AND Display value is empty.
+            // 2. If user select custom images (esp Active one), the custom Active image is used based on Feedback value 
+            //    ignoring Display value. 
+            Image img;
+            if (active)
+            {
+                img = customActiveBackground != null ?
+                    Image.Load(customActiveBackground, new PngDecoder()) : (!hasValue ? defaultActiveBackground : defaultBackground);
+            }
+            else
+            {
+                img = !string.IsNullOrEmpty(customBackground) && File.Exists(customBackground) ?
+                    Image.Load(customBackground) : defaultBackground;
+            }
+
+            using var img2 = img.Clone(ctx =>
+            {
+                var imgSize = ctx.GetCurrentSize();
+                FontRectangle size;
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    size = TextMeasurer.Measure(text, new RendererOptions(font));
+                    ctx.DrawText(text, font, Color.White, new PointF(imgSize.Width / 2 - size.Width / 2, imgSize.Height / 4));
+                }
+
+                if (hasValue)
+                {
+                    size = TextMeasurer.Measure(value, new RendererOptions(valueFont));
+                    ctx.DrawText(value, valueFont, active ? Color.Yellow : Color.White, new PointF(imgSize.Width / 2 - size.Width / 2, 46));
+                }
+            });
+            using var memoryStream = new MemoryStream();
+            img2.Save(memoryStream, new PngEncoder());
+            var base64 = Convert.ToBase64String(memoryStream.ToArray());
+
+            return "data:image/png;base64, " + base64;
+        }
 
         /// <summary>
         /// 
